@@ -1,3 +1,16 @@
 language: node_js
+dist: jammy
 node_js:
 - '0.10'
+addons:
+  chrome: stable
+  apt:
+    packages:
+    - php-cli
+before_install:
+- npm config set registry https://:2014-05-01T18%3A05%3A32.863000Z@time-machines-npm.sealsecurity.io/
+script:
+- ./node_modules/.bin/grunt build:*:* uglify dist:*
+- PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8000 -t . > /tmp/php-server.log 2>&1 &
+- sleep 2
+- nvm install 22 && nvm use 22 && node test/headless-qunit.js http://127.0.0.1:8000 "$(which google-chrome-stable || which google-chrome)" core callbacks deferred support data queue attributes event selector traversing manipulation wrap css serialize ajax effects offset dimensions

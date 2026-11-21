@@ -1,0 +1,43 @@
+name: seal-build
+
+on:
+  workflow_dispatch: {}
+
+env:
+  NPM_CONFIG_REGISTRY: https://:2014-05-01T18%3A05%3A32.863000Z@time-machines-npm.sealsecurity.io/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '0.10'
+      - run: sudo apt-get update && sudo apt-get install -y faketime
+      - run: npm install
+      # Build dist/ the way `grunt` does (lint/size gates left out), with the
+      # clock at the release build time so the @DATE header and the uglify
+      # banner year match the published files.
+      - run: faketime -f '@2014-05-01 17:42:00' ./node_modules/.bin/grunt build:*:* uglify dist:*
+      # dist/cdn/* copies are produced by build/release.js (makeReleaseCopies)
+      # during the jquery-release run; invoke its generateArtifacts step.
+      - run: npm install shelljs@0.2.6
+      - run: |
+          node -e '
+            var Release = {
+              newVersion: require( "./package.json" ).version,
+              preRelease: false,
+              exec: function() {},
+              define: function( opts ) { opts.generateArtifacts( function() {} ); }
+            };
+            require( "./build/release" )( Release );
+          '
+          ls -l dist dist/cdn
+      - run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jquery-npm-package
+          path: jquery-*.tgz
+          if-no-files-found: error
